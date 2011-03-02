@@ -427,6 +427,7 @@ void ofxFreeType2::loadFont(string filepath, int size, bool _bAntiAlias, bool _b
 	
 	//Get total Chars from Face
 	nChars	= bFullCharacterSet ? 256 : 128;
+	nChars -= START_CHAR;
 	
 	//Init arrays, generate textures
 	chars			= new charInfo[nChars];
@@ -444,14 +445,14 @@ void ofxFreeType2::loadFont(string filepath, int size, bool _bAntiAlias, bool _b
 	FT_Glyph glyph;
 	FT_BBox	bbox;
 	
-	for(int i=0; i<nChars; i++) {
+	for(int i=START_CHAR; i<nChars; i++) {
 		//Load Glyph
-		int charIndex	= i;
+		int charIndex	= i - START_CHAR;
 		
 		if(bAntiAlias) {
-			error = FT_Load_Char(face, charIndex, FT_LOAD_RENDER | FT_LOAD_FORCE_AUTOHINT);
+			error = FT_Load_Char(face, i, FT_LOAD_RENDER | FT_LOAD_FORCE_AUTOHINT);
 		} else {
-			error = FT_Load_Char(face, charIndex, FT_LOAD_RENDER | FT_LOAD_MONOCHROME);
+			error = FT_Load_Char(face, i, FT_LOAD_RENDER | FT_LOAD_MONOCHROME);
 		}
 		
 		if(error) {
@@ -463,10 +464,10 @@ void ofxFreeType2::loadFont(string filepath, int size, bool _bAntiAlias, bool _b
 		
 		//Create Outline if necessary
 		if(bMakeContours){
-			if( printVectorInfo )printf("\n\ncharacter %c: \n", char( i+START_CHAR ) );
+			if( printVectorInfo )printf("\n\ncharacter %c: \n", char( i ) );
 			
 			//int character = i + NUM_CHARACTER_TO_START;
-			charOutlines[i] = makeContoursForCharacter( face );
+			charOutlines[charIndex] = makeContoursForCharacter( face );
 		}
 		
 		
@@ -492,19 +493,19 @@ void ofxFreeType2::loadFont(string filepath, int size, bool _bAntiAlias, bool _b
 		float yMin = bbox.yMin >> 6;
 		float yMax = bbox.yMax >> 6;
 		
-		chars[i].value 			= i;
-		chars[i].width 			= xMax - xMin;
-		chars[i].height 		= yMax - yMin;
-		chars[i].left			= face->glyph->bitmap_left;
-		chars[i].top			= yMax;
-		chars[i].bottom			= yMin;
-		chars[i].advance		= face->glyph->metrics.horiAdvance >> 6;
+		chars[charIndex].value 			= i;
+		chars[charIndex].width 			= xMax - xMin;
+		chars[charIndex].height 		= yMax - yMin;
+		chars[charIndex].left			= face->glyph->bitmap_left;
+		chars[charIndex].top			= yMax;
+		chars[charIndex].bottom			= yMin;
+		chars[charIndex].advance		= face->glyph->metrics.horiAdvance >> 6;
 		
 		//Set the position of the texture, centered with pow2 tex
-		chars[i].texWidth 		= bmpW;
-		chars[i].texHeight 		= bmpH;
-		chars[i].texXDiff	= (float)bmpW/(float)width;
-		chars[i].texYDiff	= (float)bmpH/(float)height;
+		chars[charIndex].texWidth 		= bmpW;
+		chars[charIndex].texHeight 		= bmpH;
+		chars[charIndex].texXDiff	= (float)bmpW/(float)width;
+		chars[charIndex].texYDiff	= (float)bmpH/(float)height;
 		
 		// Allocate Memory For The Texture Data.
 		unsigned char* expanded_data = new unsigned char[2 * width * height];
@@ -523,17 +524,6 @@ void ofxFreeType2::loadFont(string filepath, int size, bool _bAntiAlias, bool _b
 		
 		if (bAntiAlias){
 			//-----------------------------------
-			/*for(int j=0; j <bmpH; j++) {
-				for(int k=0; k < bmpW; k++){
-					//if ((k<bitmap.width) && (j<bitmap.rows)){
-						//Offset pixels into texture by 1px to avoid edges
-						expanded_data[(((j+1) * (width + k + 1)) * 2)]		= bitmap.buffer[(k + bitmap.width*(j)) * 2];
-						expanded_data[(((j+1) * (width + k + 1)) * 2) + 1]	= bitmap.buffer[((k + bitmap.width*(j)) * 2) + 1];
-					 
-					//}
-				}
-			}*/
-			
 			for(int j=0; j <height; j++) {
 				for(int k=0; k < width; k++){
 					if ((k<bitmap.width) && (j<bitmap.rows)){
@@ -568,7 +558,7 @@ void ofxFreeType2::loadFont(string filepath, int size, bool _bAntiAlias, bool _b
 		}
 		
 		//Now we just setup some texture paramaters.
-		glBindTexture( GL_TEXTURE_2D, charTextures[i]);
+		glBindTexture( GL_TEXTURE_2D, charTextures[charIndex]);
 		
 		if (bAntiAlias){
 			glTexParameterf(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
@@ -718,6 +708,7 @@ void ofxFreeType2::drawString(string s, int x, int y) {
 			yPos += lineHeight;
 			firstChar = true;
 		} else {
+			c -= START_CHAR;
 			//Move to bitmap left pos if not the first char in a line
 			if(!firstChar || stringLen == 1) xPos += chars[c].left;
 			
@@ -753,131 +744,21 @@ void ofxFreeType2::drawString(string s, int x, int y) {
 }
 
 
-/*
+
+
+
 //--------------------------------------------------------------
-void ofxFreeType2::drawTextArea(string s, int x, int y, int width, int height, ofTextAlignment alignment, bool bHideOverflow) {
+void ofxFreeType2::drawTextArea(string s, int x, int y, int width, int height, ofTextAlignment alignment, bool bHideOverflow, bool bDrawOutlines) {
 	//Check to see that the font has been loaded!
 	if (!bFaceLoaded){
     	ofLog(OF_LOG_ERROR,"Error : font not allocated, please load font first!");
     	return;
     };
 	
-	int stringLen = (int)s.length();
-	
-	//Keep Track of Cursor Position
-	int xPos = 0;
-	int yPos = lineHeight;
-	
-	//Record Lines
-	vector <string> lines;
-	string curLine = "";
-	
-	bool bFirstChar = true;
-	
-	for(int i=0; i<stringLen; i++) {
-		int c	= (unsigned char)s[i];
-		
-		//If first char we ignore the left space
-		if(!bFirstChar) xPos += chars[c].left;
-		
-		xPos += chars[c].advance;
-		
-		bool bNewLine = false;
-		
-		//Check for new line or line break, otherwise add char to string
-		
-		if(xPos > width || c == '\n') { //We need a new line!
-			//If it isn't a new line and it has a space, push current word to next line
-			if(curLine.find(' ')!=string::npos && c != '\n') { 
-				int startOfLastWord = curLine.find_last_of(' ');
-				i -= curLine.length() - startOfLastWord; 
-				curLine = curLine.substr(0, startOfLastWord);
-			} else {
-				//Ignore blank spaces
-				if(c != '\n')  {
-					//Make sure we don't keep pushing 1 char to the next line
-					//if the text box gets utra narrow,or endless loop of death!
-					if(curLine.length() > 0) {
-						i--;
-					} else {
-						curLine += c;
-					}
-				}
-			}
-			
-			//Add Line
-			lines.push_back(curLine);
-			
-			//Reset Vars and advance Y
-			xPos = 0;
-			yPos += lineHeight;
-			bFirstChar = true;
-			curLine = "";
-		} else { //We're fine, add the letter to the line
-			curLine += c;
-		}
-		
-		//Check for overflow, if we are hiding it we are finished
-		if(bHideOverflow && yPos > height) {
-			curLine = "";
-			break;
-		}
+	if (bDrawOutlines && !bMakeContours){
+		ofLog(OF_LOG_ERROR,"Error : contours not created for this font - call loadFont with makeContours set to true");
+		return;
 	}
-	
-	//Add the last line
-	if(curLine != "") {
-		lines.push_back(curLine);
-	}
-	
-	string	formattedText = "";
-	
-	switch (alignment) {
-		case OF_TEXT_ALIGN_LEFT:
-			//Add all lines together, seperate with '\n'
-			for(int i=0; i<lines.size(); i++) {
-				formattedText += lines[i];
-				if(i!=lines.size()-1) {
-					formattedText += '\n';
-				}
-			}
-			
-			//Draw the line
-			drawString(formattedText, x, y);
-			
-			break;
-		case OF_TEXT_ALIGN_CENTER:
-			//Draw each line individually, aligning each individually
-			yPos = y;
-			
-			for(int i=0; i<lines.size();i++) {
-				xPos = x+ width/2 - getStringWidth(lines[i])/2;
-				drawString(lines[i], xPos, yPos);
-				yPos += lineHeight;
-			}
-			break;
-		case OF_TEXT_ALIGN_RIGHT:
-			//Draw each line individually, aligning each individually
-			yPos = y;
-			
-			for(int i=0; i<lines.size();i++) {
-				xPos = x + width - getStringWidth(lines[i]);
-				drawString(lines[i], xPos, yPos);
-				yPos += lineHeight;
-			}
-		default:
-			break;
-	}
-}*/
-
-
-
-//--------------------------------------------------------------
-void ofxFreeType2::drawTextArea(string s, int x, int y, int width, int height, ofTextAlignment alignment, bool bHideOverflow) {
-	//Check to see that the font has been loaded!
-	if (!bFaceLoaded){
-    	ofLog(OF_LOG_ERROR,"Error : font not allocated, please load font first!");
-    	return;
-    };
 	
 	//Keep Track of Cursor Position
 	int xPos = 0;
@@ -908,7 +789,11 @@ void ofxFreeType2::drawTextArea(string s, int x, int y, int width, int height, o
 			}
 			
 			//Draw the line as string
-			drawString(formattedText, x, y);
+			if(bDrawOutlines) {
+				drawStringAsShapes(formattedText, x, y);
+			} else {
+				drawString(formattedText, x, y);
+			}
 			
 			break;
 		case OF_TEXT_ALIGN_CENTER:
@@ -922,7 +807,11 @@ void ofxFreeType2::drawTextArea(string s, int x, int y, int width, int height, o
 				}
 				
 				xPos = x+ width/2 - getStringWidth(lines[i])/2;
-				drawString(lines[i], xPos, yPos);
+				if(bDrawOutlines) {
+					drawStringAsShapes(lines[i], xPos, yPos);
+				} else {
+					drawString(lines[i], xPos, yPos);
+				}
 				yPos += lineHeight;
 			}
 			break;
@@ -937,13 +826,22 @@ void ofxFreeType2::drawTextArea(string s, int x, int y, int width, int height, o
 				}
 				
 				xPos = x + width - getStringWidth(lines[i]);
-				drawString(lines[i], xPos, yPos);
+				
+				if(bDrawOutlines) {
+					drawStringAsShapes(lines[i], xPos, yPos);
+				} else {
+					drawString(lines[i], xPos, yPos);
+				}
+				
 				yPos += lineHeight;
 			}
 		default:
 			break;
 	}
 }
+
+
+
 
 
 //--------------------------------------------------------------
@@ -962,11 +860,12 @@ vector <string> ofxFreeType2::getTextAreaLines(string s, int width) {
 	
 	for(int i=0; i<stringLen; i++) {
 		int c	= (unsigned char)s[i];
+		int cu	= c - START_CHAR;
 		
 		//If first char we ignore the left space
-		if(!bFirstChar) xPos += chars[c].left;
+		if(!bFirstChar) xPos += chars[cu].left;
 		
-		xPos += chars[c].advance;
+		xPos += chars[cu].advance;
 		
 		bool bNewLine = false;
 		
@@ -1023,7 +922,7 @@ vector <string> ofxFreeType2::getTextAreaLines(string s, int width) {
 void ofxFreeType2::drawCharAsShape(int c) {
 	//Make sure we're not out of bounds wtih loaded characters
 	if (c >= nChars){
-		//ofLog(OF_LOG_ERROR,"Error : char (%i) not allocated -- line %d in %s", (c + NUM_CHARACTER_TO_START), __LINE__,__FILE__);
+		ofLog(OF_LOG_ERROR,"Error : char (%i) not allocated -- line %d in %s", (c - START_CHAR), __LINE__,__FILE__);
 		return;
 	}
 	
@@ -1041,7 +940,6 @@ void ofxFreeType2::drawCharAsShape(int c) {
 	}
 	ofEndShape( true );
 	glPopMatrix();
-	
 }
 
 
@@ -1080,6 +978,7 @@ void ofxFreeType2::drawStringAsShapes(string s, float x, float y) {
 			yPos += lineHeight;
 			firstChar = true;
 		} else {
+			c -= START_CHAR;
 			//Move to bitmap left pos if not the first char in a line
 			//if(!firstChar) xPos += chars[cy].left;
 			
@@ -1099,6 +998,10 @@ void ofxFreeType2::drawStringAsShapes(string s, float x, float y) {
 }
 
 
+//--------------------------------------------------------------
+void ofxFreeType2::drawTextAreaAsShapes(string s, int x, int y, int width, int height, ofTextAlignment alignment, bool bHideOverflow) {
+	drawTextArea(s,x,y,width,height,alignment,bHideOverflow,true);
+}
 
 
 
@@ -1171,13 +1074,15 @@ ofRectangle ofxFreeType2::getStringBoundingBox(string s, float x, float y) {
 			boundingBox.height += lineHeight;
 			
 			continue;
+		} else {
+			c -= START_CHAR;
 		}
 		
 		//Add the width of the char
 		if(!bFirstChar) curWidth += chars[c].left;
 		
 		//Check to see if next char is a line return,
-		unsigned char nextChar = ' ';
+		unsigned char nextChar =  ' ';
 		if(i!=stringLen-1) {
 			nextChar = (unsigned char)s[i+1];
 		} 
@@ -1215,6 +1120,7 @@ int ofxFreeType2::getMaxCharHeight(string s, bool bFromBaseline) {
 		if(thisChar == '\n')  {
 			break;
 		} else {
+			thisChar -= START_CHAR;
 			maxTop		= max(chars[thisChar].top,maxTop);
 			minBottom	= min(chars[thisChar].bottom, minBottom);
 		}

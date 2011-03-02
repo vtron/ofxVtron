@@ -23,8 +23,8 @@
 
 
 
-#define START_CHAR 0
-// 0 - 32 are control characters, no graphics needed.
+#define START_CHAR 31
+// 0 - 31 are control characters, no graphics needed.
 
 //Character Info
 typedef struct {
@@ -84,7 +84,7 @@ public:
 	
 	
 	void	drawString(string s, int x, int y);
-	void	drawTextArea(string s, int x, int y, int width, int height, ofTextAlignment alignment = OF_TEXT_ALIGN_LEFT, bool bHideOverflow = true);
+	void	drawTextArea(string s, int x, int y, int width, int height, ofTextAlignment alignment = OF_TEXT_ALIGN_LEFT, bool bHideOverflow = true, bool bDrawOutlines = false);
 	
 	int		getLineHeight();
 	void	setLineHeight(float height);
@@ -99,6 +99,7 @@ public:
 	
 	//Outlines Specific
 	void			drawStringAsShapes(string s, float x, float y);
+	void			drawTextAreaAsShapes(string s, int x, int y, int width, int height, ofTextAlignment alignment = OF_TEXT_ALIGN_LEFT, bool bHideOverflow = true);
 	ofTTCharacter	getCharacterAsPoints(int character);
 	
 	
@@ -119,6 +120,7 @@ private:
 	int			fontSize;
 	int			lineHeight;
 	
+	//Draw Char always private! Needs to reference START_CHAR offset, always use drawString()
 	void		drawChar(int c);
 	
 	
