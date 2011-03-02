@@ -445,7 +445,7 @@ void ofxFreeType2::loadFont(string filepath, int size, bool _bAntiAlias, bool _b
 	FT_Glyph glyph;
 	FT_BBox	bbox;
 	
-	for(int i=START_CHAR; i<nChars; i++) {
+	for(int i=START_CHAR; i<nChars+START_CHAR; i++) {
 		//Load Glyph
 		int charIndex	= i - START_CHAR;
 		
@@ -807,11 +807,13 @@ void ofxFreeType2::drawTextArea(string s, int x, int y, int width, int height, o
 				}
 				
 				xPos = x+ width/2 - getStringWidth(lines[i])/2;
+				
 				if(bDrawOutlines) {
 					drawStringAsShapes(lines[i], xPos, yPos);
 				} else {
 					drawString(lines[i], xPos, yPos);
 				}
+				
 				yPos += lineHeight;
 			}
 			break;
@@ -900,6 +902,8 @@ vector <string> ofxFreeType2::getTextAreaLines(string s, int width) {
 		} else { //We're fine, add the letter to the line
 			curLine += c;
 		}
+		
+		
 	}
 	
 	//Add the last line
