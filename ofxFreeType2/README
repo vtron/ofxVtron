@@ -1,0 +1,7 @@
+Complete rewrite of ofTrueTypeFont based on newer Freetype libraries.
+
+Featuring:
+-Better rendering
+-More accurate width/height
+-Text areas with paragraph aligment,overflow hiding, etc.
+-Resolution setting (not necessary but will make fonts look a little better if accurately set)
